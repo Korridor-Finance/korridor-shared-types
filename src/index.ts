@@ -1,5 +1,5 @@
-// Remaining KOR-004 definitions still to land: PaymentEvent, PaymentRailAdapter,
-// ComplianceResult, ASETenant, CardAuthRequest, CardAuthResponse, AuditEventType.
+// Remaining KOR-004 definitions still to land: ComplianceResult, ASETenant,
+// CardAuthRequest, CardAuthResponse, AuditEventType.
 
 export type UserRole = "OPERATOR" | "COMPLIANCE" | "ADMIN" | "CUSTOMER" | "ASE" | "SYSTEM";
 
@@ -33,4 +33,63 @@ export interface DeviceContext {
   appVersion: string;
   gps: { lat: number; lng: number } | null;
   networkType: NetworkType;
+}
+
+// KOR-040: every payment rail Korridor integrates with (fiat gateways,
+// blockchains, card acquirers, SWIFT) implements PaymentRailAdapter. This is
+// the contract every future consumer (EP-07's processPayment, ledger
+// reconciliation, etc.) codes against instead of each rail's own webhook
+// payload shape.
+export type RailName = "PAYPAL" | "MPESA" | "STELLAR" | "BASE" | "CARD_ACQUIRER" | "SWIFT";
+
+export type PaymentDirection = "INBOUND" | "OUTBOUND";
+
+// A rail-agnostic representation of a single payment movement.
+export interface PaymentEvent {
+  rail: RailName;
+  direction: PaymentDirection;
+  // The rail's own transaction/reference id — the idempotency key for
+  // dedup'ing retried webhooks (KOR-041 in particular: PayPal resends).
+  externalRef: string;
+  // Integer minor units — cents, kobo, or the rail's smallest indivisible
+  // unit. Never a float, to avoid rounding drift across rails.
+  amountMinor: number;
+  // ISO 4217 for fiat rails; the asset code (e.g. "USDC") for crypto rails.
+  currency: string;
+  // ISO 8601 — when the rail says the payment happened, not when Korridor
+  // received the webhook about it.
+  occurredAt: string;
+  // The original parsed payload, kept for audit/debugging — never relied
+  // on by callers for anything the typed fields above already cover.
+  raw: Record<string, unknown>;
+}
+
+export interface RefundResult {
+  refundId: string;
+  status: "SUBMITTED" | "COMPLETED" | "FAILED";
+  raw: Record<string, unknown>;
+}
+
+// verifySignature() is async across every rail, even ones whose own auth
+// scheme is a synchronous HMAC compare: for the blockchain rails (Stellar,
+// Base) "verified" means confirmed on-chain with enough confirmations,
+// which is inherently an RPC call, and for PayPal it means asking PayPal's
+// own verify-webhook-signature endpoint rather than validating a cert
+// chain by hand. One async contract across every adapter is simpler than a
+// boolean/Promise<boolean> union that differs per rail.
+//
+// Real call sites always call verifySignature() before parseWebhook() —
+// parseWebhook() itself does no verification, so an adapter must never be
+// wired to a route that skips the signature check.
+//
+// parseWebhook() returns null for a well-formed payload the adapter simply
+// doesn't care about (e.g. a PayPal event type other than
+// payment.capture.completed) and throws for a payload that's malformed
+// for an event type it does claim to handle — "ignore" and "broken" are
+// different failure modes and callers need to tell them apart.
+export interface PaymentRailAdapter {
+  readonly rail: RailName;
+  verifySignature(rawBody: string, headers: Record<string, string | string[] | undefined>): Promise<boolean>;
+  parseWebhook(rawBody: string, headers: Record<string, string | string[] | undefined>): PaymentEvent | null;
+  issueRefund(event: PaymentEvent, amountMinor?: number): Promise<RefundResult>;
 }
