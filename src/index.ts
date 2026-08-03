@@ -30,6 +30,7 @@ export interface DeviceContext {
   deviceId: string;
   os: string;
   model: string;
+  appVersion: string;
   gps: { lat: number; lng: number } | null;
   networkType: NetworkType;
 }
