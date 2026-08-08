@@ -1,5 +1,5 @@
-// Remaining KOR-004 definitions still to land: ComplianceResult, ASETenant,
-// CardAuthRequest, CardAuthResponse, AuditEventType.
+// Remaining KOR-004 definitions still to land: ASETenant, CardAuthRequest,
+// CardAuthResponse, AuditEventType.
 
 export type UserRole = "OPERATOR" | "COMPLIANCE" | "ADMIN" | "CUSTOMER" | "ASE" | "SYSTEM";
 
@@ -92,4 +92,37 @@ export interface PaymentRailAdapter {
   verifySignature(rawBody: string, headers: Record<string, string | string[] | undefined>): Promise<boolean>;
   parseWebhook(rawBody: string, headers: Record<string, string | string[] | undefined>): PaymentEvent | null;
   issueRefund(event: PaymentEvent, amountMinor?: number): Promise<RefundResult>;
+}
+
+// EP-06 compliance types. Mirrors the Prisma enums of the same name in
+// korridor-api's schema.prisma (string-for-string) — kept here too, not
+// imported from Prisma, so korridor-web's Kitu/AML dashboards can render
+// them without depending on the API's Prisma client.
+export type KycTier = "UNVERIFIED" | "BASIC" | "STANDARD" | "ENHANCED";
+export type KycStatus = "PENDING" | "VERIFIED" | "REJECTED" | "EXPIRED";
+
+export type ComplianceCheckType = "KYC" | "AML_RULES" | "SANCTIONS" | "GRANT";
+export type ComplianceResultStatus = "PASS" | "HOLD" | "FAIL";
+export type ComplianceCaseStatus = "PENDING" | "APPROVED" | "REJECTED" | "STR_FILED";
+
+// KOR-053: what the compliance pipeline orchestrator returns. `hold` (not
+// just `pass: false`) exists because a HOLD needs a human in the AML queue
+// — a FAIL doesn't; recommendedStatus reuses TransactionStatus's existing
+// KYC_HOLD/AML_REVIEW/GRANT_HOLD states rather than inventing new ones, so
+// a transaction's status is always one of the states already defined above.
+export interface ComplianceStageResult {
+  checkType: ComplianceCheckType;
+  result: ComplianceResultStatus;
+  reason: string | null;
+}
+
+export interface ComplianceResult {
+  pass: boolean;
+  hold: boolean;
+  reason: string | null;
+  recommendedStatus: TransactionStatus;
+  // Every stage actually run, in order, up to and including the one that
+  // stopped the pipeline (short-circuits on the first non-PASS) — not just
+  // the final verdict, so a caller can see exactly where it stopped.
+  stages: ComplianceStageResult[];
 }
