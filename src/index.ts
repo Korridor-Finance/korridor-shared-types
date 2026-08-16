@@ -1,5 +1,5 @@
 // Remaining KOR-004 definitions still to land: ASETenant, CardAuthRequest,
-// CardAuthResponse, AuditEventType.
+// CardAuthResponse.
 
 export type UserRole = "OPERATOR" | "COMPLIANCE" | "ADMIN" | "CUSTOMER" | "ASE" | "SYSTEM";
 
@@ -126,3 +126,37 @@ export interface ComplianceResult {
   // the final verdict, so a caller can see exactly where it stopped.
   stages: ComplianceStageResult[];
 }
+
+// KOR-080: the platform-wide, append-only event log — a broader and flatter
+// record than any single-purpose table (ComplianceAuditEvent's check
+// results, TransactionStatusEvent's state transitions, RetryLog's retry
+// attempts). Those stay as the detailed record for their own domains; this
+// is the cross-cutting trail auditors/compliance actually walk end to end
+// for one aseId. CARD_AUTH_APPROVED/DECLINED are listed even though nothing
+// emits them yet — EP-13 (card programme) hasn't landed — same
+// forward-declared-but-unused pattern as KOR-014's card-settlement queues.
+export type AuditEventType =
+  | "PAYMENT_RECEIVED"
+  | "COMPLIANCE_PASS"
+  | "COMPLIANCE_FAIL"
+  | "KYC_CHECK"
+  | "AML_FLAG"
+  | "GRANT_CHECK"
+  | "ILP_ROUTING_START"
+  | "ILP_ROUTING_COMPLETE"
+  | "LOOP_WEBHOOK_SENT"
+  | "SETTLEMENT_CONFIRMED"
+  | "ETIMS_GENERATED"
+  | "ETIMS_FAILED"
+  | "TRANSACTION_COMPLETED"
+  | "TRANSACTION_FAILED"
+  | "CARD_AUTH_APPROVED"
+  | "CARD_AUTH_DECLINED"
+  | "STR_FILED";
+
+// Reuses UserRole rather than a second, parallel enum — "who/what did
+// this" is exactly the same set of actors as "who is this JWT for"
+// (src/rbac/withRole.ts already establishes ASE vs. SYSTEM vs. an
+// operator role per request; background jobs with no request at all log
+// SYSTEM).
+export type ActorType = UserRole;
