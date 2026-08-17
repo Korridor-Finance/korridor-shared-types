@@ -1,5 +1,9 @@
 node_modules/
-dist/
 *.tsbuildinfo
 .DS_Store
 *.log
+
+# dist/ is deliberately committed, not ignored — consuming repos install
+# this package via a git dependency (see docs/PUBLISHING.md), which needs
+# the compiled output to already be present in the repo; there's no build
+# step at install time for a plain `github:...#<tag>` spec.

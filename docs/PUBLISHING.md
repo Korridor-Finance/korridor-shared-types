@@ -1,52 +1,50 @@
-# Publishing (GitHub Packages)
+# Distribution
 
-`@korridor-finance/shared-types` publishes to GitHub Packages'
-npm registry (`npm.pkg.github.com`) via `.github/workflows/publish.yml`,
-which runs on every push to `main` that touches `package.json`, `src/**`, or
-`tsconfig.json` — and only actually publishes when `package.json`'s
-`version` is one the registry doesn't already have.
+`korridor-api` and `korridor-web` consume this package as a **git-tag
+dependency** against this repo, e.g.:
 
-To ship a new version: bump `version` in `package.json`, push to `main`,
-done. No manual publish step, no npm login.
+```json
+"@korridor-finance/shared-types": "github:Korridor-Finance/korridor-shared-types#v0.2.0"
+```
 
-## Why the package is named `@korridor-finance/...`, not `@korridor/...`
+`dist/` is deliberately **committed to this repo** (not gitignored) so that
+works with zero build step at install time — `pnpm install` just clones the
+tagged commit and the compiled JS/`.d.ts` files are already sitting there.
 
-GitHub Packages requires an npm package's scope to match the GitHub
-organization that owns the publishing repository — the org here is
-`Korridor-Finance`, so the scope must be `@korridor-finance`. This is a
-GitHub-enforced rule, not a style choice; publishing as `@korridor/...`
-fails with a 403.
+This needs the repo to be **public**, or every environment that installs
+`korridor-api`/`korridor-web` (CI, local dev, and wherever they actually
+deploy) needs its own git credential with read access — a git-tag
+dependency doesn't remove the credential requirement for a private repo,
+it just moves it from "npm registry auth" to "git clone auth." Since this
+package is pure type/interface definitions (no secrets, no business logic),
+making the repo public is the simpler call, and is what unblocks a build
+platform like Cloudflare (whose build sandbox has no access to anyone's
+personal git credentials).
 
-## What's left for you to do
+## Releasing a new version
 
-Publishing itself (above) needs no secret — the workflow's ambient
-`GITHUB_TOKEN` can publish packages owned by this same repository once
-granted `packages: write`, which `publish.yml` already declares.
+1. Bump `version` in `package.json`.
+2. `pnpm run build` (regenerates `dist/`).
+3. Commit `package.json` + `dist/` together, tag the commit `vX.Y.Z`, push
+   both the commit and the tag.
+4. In `korridor-api`/`korridor-web`: `pnpm add @korridor-finance/shared-types@github:Korridor-Finance/korridor-shared-types#vX.Y.Z`.
 
-**Consuming** this package from a different repo (`korridor-api`,
-`korridor-web` — either their CI, a developer's own machine, or an actual
-production deploy) is a separate story: GitHub's `GITHUB_TOKEN` is
-deliberately scoped to only the repo a workflow runs in, so it can't read
-packages published by a sibling repo, private or not. You need to:
+Skipping the tag bump and just pushing to `main` doesn't update anything
+downstream — the consuming repos are pinned to a specific tag, not a
+moving branch, so a shared-types change has no effect until a consumer
+explicitly re-pins.
 
-1. **Create a Personal Access Token** (classic, not fine-grained — GitHub
-   Packages' npm registry doesn't yet support fine-grained tokens for reads
-   across repos) with the `read:packages` scope only.
-   GitHub → Settings → Developer settings → Personal access tokens →
-   Tokens (classic) → Generate new token.
-2. **Add it as an Actions secret** named `PACKAGES_READ_TOKEN` — do this
-   once at the `Korridor-Finance` **organization** level (Settings →
-   Secrets and variables → Actions → New organization secret) rather than
-   per-repo, so `korridor-api` and `korridor-web` both pick it up without
-   duplicating the secret.
-3. **For local development**, export the same token as `NODE_AUTH_TOKEN`
-   in your shell profile (or a local, gitignored `.npmrc`) before running
-   `pnpm install` in `korridor-api` or `korridor-web`.
-4. **For production deployment**, whatever platform builds `korridor-api`
-   or `korridor-web` (Docker build, Render, Vercel, ...) needs
-   `NODE_AUTH_TOKEN` set in its own build-time environment/secrets — the
-   same PAT works here too.
+## GitHub Packages (secondary, not currently used by api/web)
 
-None of this was created automatically — a PAT is a credential tied to a
-GitHub user account, and creating one (or an org secret) isn't something
-that can be done on your behalf.
+This repo also publishes to GitHub Packages
+(`.github/workflows/publish.yml`, on every push to `main` whose version is
+new) as `@korridor-finance/shared-types` — GitHub Packages requires the
+npm scope to match the GitHub org (`Korridor-Finance`), hence the rename
+from the original `@korridor/...`. Publishing needs no secret (the
+workflow's own `GITHUB_TOKEN` can publish packages owned by this same
+repo). This exists as an option for a future npm-registry-based consumer;
+`korridor-api`/`korridor-web` don't use it today because it hit the same
+private-repo credential problem the git-tag approach also has, plus GitHub
+Packages sometimes still requires auth for reads even on a public repo —
+the git-tag dependency is the more reliably credential-free path once this
+repo is public.
