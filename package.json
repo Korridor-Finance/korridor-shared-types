@@ -1,6 +1,6 @@
 {
   "name": "@korridor-finance/shared-types",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Shared DTOs and interfaces used across the Korridor API and web admin repos",
   "type": "module",
   "main": "./dist/index.js",
@@ -28,7 +28,7 @@
     "lint": "eslint src",
     "test": "vitest run --passWithNoTests",
     "clean": "rm -rf dist",
-    "prepare": "husky"
+    "hooks:install": "husky"
   },
   "lint-staged": {
     "src/**/*.ts": "eslint --fix"
