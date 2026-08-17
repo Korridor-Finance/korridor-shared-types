@@ -1,6 +1,6 @@
 {
-  "name": "@korridor/shared-types",
-  "version": "0.1.0",
+  "name": "@korridor-finance/shared-types",
+  "version": "0.2.0",
   "description": "Shared DTOs and interfaces used across the Korridor API and web admin repos",
   "type": "module",
   "main": "./dist/index.js",
@@ -14,6 +14,13 @@
   "files": [
     "dist"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Korridor-Finance/korridor-shared-types.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
