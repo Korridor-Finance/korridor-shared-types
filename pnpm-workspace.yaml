@@ -1,2 +1,11 @@
+# korridor-shared-types is a single package, not a monorepo — this file
+# exists only to hold the allowBuilds setting below. Newer pnpm (10+)
+# requires a non-empty `packages` field the moment a pnpm-workspace.yaml
+# exists at all, or `pnpm install` fails outright with "packages field
+# missing or empty" — "." declares the root itself as the sole workspace
+# member, which is all that's needed here.
+packages:
+  - "."
+
 allowBuilds:
   esbuild: true
