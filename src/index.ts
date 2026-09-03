@@ -152,7 +152,14 @@ export type AuditEventType =
   | "TRANSACTION_FAILED"
   | "CARD_AUTH_APPROVED"
   | "CARD_AUTH_DECLINED"
-  | "STR_FILED";
+  | "STR_FILED"
+  // EP-12 (ASE Tenant API) — self-service actions an ASE takes against its
+  // own tenant config (API key generation/rotation, webhook config,
+  // supported currencies).
+  | "API_KEY_GENERATED"
+  | "API_KEY_ROTATED"
+  | "WEBHOOK_CONFIG_UPDATED"
+  | "CURRENCIES_UPDATED";
 
 // Reuses UserRole rather than a second, parallel enum — "who/what did
 // this" is exactly the same set of actors as "who is this JWT for"
